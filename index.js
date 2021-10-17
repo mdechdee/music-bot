@@ -1,6 +1,7 @@
 const Discord = require("discord.js");
 const { prefix, token } = require("./config.json");
 const ytdl = require("ytdl-core");
+const ytSearch = require('youtube-search-api');
 
 const client = new Discord.Client();
 
@@ -39,7 +40,8 @@ client.on("message", async message => {
 });
 
 async function execute(message, serverQueue) {
-  const args = message.content.split(" ");
+  // remove !p
+  const query = message.content.split(" ").slice(1).join(' ');
 
   const voiceChannel = message.member.voice.channel;
   if (!voiceChannel)
@@ -52,8 +54,16 @@ async function execute(message, serverQueue) {
       "I need the permissions to join and speak in your voice channel!"
     );
   }
+  
+  const res = await ytSearch.GetListByKeyword(query);
 
-  const songInfo = await ytdl.getInfo(args[1]);
+  if(!res?.items){
+    return message.channel.send(
+      "I can't find the song you are looking for :("
+    );
+  }
+
+  const songInfo = await ytdl.getInfo(urlFromId(res.items[0].id));
   const song = {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
@@ -84,7 +94,7 @@ async function execute(message, serverQueue) {
     }
   } else {
     serverQueue.songs.push(song);
-    return message.channel.send(`${song.title} has been added to the queue!`);
+    return message.channel.send(`${"`"+song.title+"`"} has been added to the queue!\n ${song.url}`);
   }
 }
 
@@ -120,7 +130,7 @@ function play(guild, song) {
   }
 
   const dispatcher = serverQueue.connection
-    .play(ytdl(song.url))
+    .play(ytdl(song.url, {filter: 'audioonly', highWaterMark: 1024*1024*20}))
     .on("finish", () => {
       serverQueue.songs.shift();
       play(guild, serverQueue.songs[0]);
@@ -128,6 +138,10 @@ function play(guild, song) {
     .on("error", error => console.error(error));
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
   serverQueue.textChannel.send(`Start playing: **${song.title}**`);
+}
+
+function urlFromId(id){
+  return "http://www.youtube.com/watch?v="+id;
 }
 
 client.login(token);
