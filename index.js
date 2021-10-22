@@ -2,6 +2,13 @@ const Discord = require("discord.js");
 const { prefix, token } = require("./config.json");
 const ytdl = require("ytdl-core");
 const ytSearch = require('youtube-search-api');
+const fs = require('fs');
+var dishes = [];
+try {
+  dishes = fs.readFileSync('./thai-menus.csv', 'utf8').split('\n');
+} catch (err) {
+  console.error(err,err.stack);
+}
 
 const client = new Discord.Client();
 
@@ -33,6 +40,9 @@ client.on("message", async message => {
     return;
   } else if (message.content.startsWith(`${prefix}stop`)) {
     stop(message, serverQueue);
+    return;
+  } else if (message.content.startsWith(`${prefix}food`)) {
+    message.channel.send(dishes[Math.floor(Math.random()*dishes.length)]);
     return;
   } else {
     message.channel.send("You need to enter a valid command!");
