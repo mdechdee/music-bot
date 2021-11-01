@@ -7,9 +7,13 @@ const {
 	joinVoiceChannel,
 } = require('@discordjs/voice');
 const ytdl = require("ytdl-core");
+const fs = require('fs');
+const path = require("path");
 
 queue = new Map();
-player = createAudioPlayer(),
+player = createAudioPlayer();
+const raw = fs.readFileSync(path.resolve(__dirname, "../guild-channel-map.json"));
+const guildChannelMap = JSON.parse(raw);
 
 module.exports = {
     queue: queue,
@@ -52,4 +56,5 @@ module.exports = {
         interaction.channel.send(`Start playing: **${song.title}**`);
         console.log(`Start playing: **${song.title}**`);
     },
+    guildChannelMap: guildChannelMap,
 }

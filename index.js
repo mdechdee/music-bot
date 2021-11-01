@@ -4,7 +4,7 @@ const { clientId, guildId, token  } = require('./config.json');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_VOICE_STATES] });
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_VOICE_STATES, Intents.FLAGS.GUILD_MESSAGES] });
 
 client.commands = new Collection();
 const restCommands = [];
@@ -13,7 +13,7 @@ const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('
 for (const file of commandFiles) {
 	const command = require(`./commands/${file}`);
 	client.commands.set(command.data.name, command);
-  restCommands.push(command.data.toJSON());
+	restCommands.push(command.data.toJSON());
 }
 
 const rest = new REST({ version: '9' }).setToken(token);
@@ -33,7 +33,6 @@ for (const file of eventFiles) {
 		client.on(event.name, (...args) => event.execute(...args));
 	}
 }
-
 /////
 
 client.login(token);
