@@ -31,13 +31,25 @@ module.exports = {
         else{
             const res = await ytSearch.GetListByKeyword(title);
             if(!res?.items){
-                return  message.channel.send(
-					"Can't find song TT"
-					);
+                return  message.channel.send("Can't find song TT");
             }
-            songUrl = urlFromId(res.items[0].id);
+            songUrls = res.items.map(item => urlFromId(item.id));
+            console.log("Song URLs: ", songUrls);
         }
-        const songInfo = await ytdl.getInfo(songUrl);
+        var songInfo = null;
+        for(const songUrl of songUrls){
+            try{
+                songInfo = await ytdl.getInfo(songUrl);
+                console.log("Download ", songUrl, " sucessfully");
+                break;
+            }
+            catch (err) {
+                console.log("Downlaod ", songUrl, "failed");
+                continue;
+            }
+        }
+        if(songInfo === null)
+            return message.channel.send("There's error downloading this song");
         const song = {
             title: songInfo.videoDetails.title,
             url: songInfo.videoDetails.video_url,
