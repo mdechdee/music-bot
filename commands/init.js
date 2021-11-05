@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { MessageActionRow, MessageButton } = require('discord.js');
-
+const fs = require('fs');
+const path = require("path");
 const { guildChannelMap } = require('../utils/yt-queue');
 
 const row = new MessageActionRow()

@@ -50,6 +50,7 @@ module.exports = {
                 textChannel: message.channel,
                 voiceChannel: voiceChannel,
                 connection: null,
+                player: null,
                 songs: [],
                 volume: 5,
                 playing: true

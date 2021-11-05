@@ -5,19 +5,19 @@ const {
 	createAudioResource,
     createAudioPlayer,
 	joinVoiceChannel,
+    getVoiceConnection,
 } = require('@discordjs/voice');
 const ytdl = require("ytdl-core");
 const fs = require('fs');
 const path = require("path");
 
-queue = new Map();
-player = createAudioPlayer();
+const queue = new Map();
 const raw = fs.readFileSync(path.resolve(__dirname, "../guild-channel-map.json"));
 const guildChannelMap = JSON.parse(raw);
 
 module.exports = {
     queue: queue,
-    player: player,
+
     isYtUrl(str){
         return str.startsWith("https://www.youtube.com/watch");
     },
@@ -28,14 +28,23 @@ module.exports = {
         const serverQueue = queue.get(interaction.guild.id);
         const voiceChannel = interaction.member.voice.channel;
 
-        const connection = joinVoiceChannel({
-            channelId: voiceChannel.id,
-            guildId: interaction.guild.id,
-            adapterCreator: interaction.guild.voiceAdapterCreator,
-        });
+        var connection = getVoiceConnection(voiceChannel.guild.id);
+        if(!connection){
+            connection = joinVoiceChannel({
+                channelId: voiceChannel.id,
+                guildId: interaction.guild.id,
+                adapterCreator: interaction.guild.voiceAdapterCreator,
+            });
+        }
+
+        var player = serverQueue.player;
+        if(!player){
+            player = createAudioPlayer();
+        }
 
         if (!song) {
             connection.destroy();
+            player.stop();
             queue.delete(interaction.guild.id);
             return;
         }
@@ -48,11 +57,20 @@ module.exports = {
         connection.subscribe(player);
         player.play(resource);
 
-        player.on(AudioPlayerStatus.Idle, () => {      
-            console.log("Song end, shifting")
-            serverQueue.songs.shift();
-            playSongFromInteraction(serverQueue.songs[0], interaction);
-        });
+        if(serverQueue.player === null){
+            player.on('error', error => {
+                console.error(error);
+            });
+            
+            player.on(AudioPlayerStatus.Idle, () => {
+                console.log("Song end, shifting")
+                if(!serverQueue)    return;
+                serverQueue.songs.shift();
+                playSongFromInteraction(serverQueue.songs[0], interaction);
+            });
+
+            serverQueue.player = player;
+        }
         interaction.channel.send(`Start playing: **${song.title}**`);
         console.log(`Start playing: **${song.title}**`);
     },
