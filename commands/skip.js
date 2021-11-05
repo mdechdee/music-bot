@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { queue, playSongFromInteraction } = require('../utils/yt-queue');
+const { queue, playSong } = require('../utils/yt-queue');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -8,7 +8,7 @@ module.exports = {
 	async execute(interaction) {
       if (!interaction.member.voice.channel){
         return interaction.reply(
-          "You have to be in a voice channel to stop the music!"
+          "You have to be in a voice channel to skip the music!"
         );
       }
 
@@ -20,6 +20,6 @@ module.exports = {
       
       serverQueue.songs.shift();
       return interaction.reply("Skipping song")
-        .then(() => playSongFromInteraction(serverQueue.songs[0], interaction));
+        .then(() => playSong(serverQueue.songs[0], interaction.guild, interaction.member.voice.channel));
 	},
 };

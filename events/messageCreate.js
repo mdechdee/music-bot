@@ -1,7 +1,10 @@
-const { guildChannelMap, queue ,urlFromId, playSongFromInteraction, isYtUrl } = require('../utils/yt-queue');
-const ytSearch = require('youtube-search-api');
-const ytdl = require("ytdl-core");
-
+const { 
+    guildChannelMap, 
+    isMemberInVoiceChannel, 
+    hasConnectAndSpeakPermission,
+    findSong, 
+    addSongToQueue 
+} = require('../utils/yt-queue');
 
 module.exports = {
 	name: 'messageCreate',
@@ -10,79 +13,19 @@ module.exports = {
 		if (message.author.bot) return;
 		if(!guildChannelMap[message.guildId] || guildChannelMap[message.guildId] != message.channelId)  return;
 
-		const voiceChannel = message.member.voice.channel;
-        if (!voiceChannel)
-            return message.channel.send(
-            "You need to be in a voice channel to play music!"
-            );
-        const permissions = voiceChannel.permissionsFor(message.client.user);
-        if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
-            return message.channel.send(
-            "I need the permissions to join and speak in your voice channel!"
-            );
-        }
+        if(!isMemberInVoiceChannel(message.member))
+            return message.channel.send("You must be in voice channel to play songs!"); 
+        
+        if(!hasConnectAndSpeakPermission(message.member.voice.channel, message.client))
+            return message.channel.send("I don't have permission to CONNECT or SPEAK!"); 
+
         // find song
         const title = message.content;
+        const song = await findSong(title);
+        if(!song)   return message.channel.send(`Can't find song **${title}**, or it is restricted`);
         
-        var songUrl;
-        if(isYtUrl(title)){
-            songUrl = title;
-        }
-        else{
-            const res = await ytSearch.GetListByKeyword(title);
-            if(!res?.items){
-                return  message.channel.send("Can't find song TT");
-            }
-            songUrls = res.items.map(item => urlFromId(item.id));
-            console.log("Song URLs: ", songUrls);
-        }
-        var songInfo = null;
-        for(const songUrl of songUrls){
-            try{
-                songInfo = await ytdl.getInfo(songUrl);
-                console.log("Download ", songUrl, " sucessfully");
-                break;
-            }
-            catch (err) {
-                console.log("Downlaod ", songUrl, "failed");
-                continue;
-            }
-        }
-        if(songInfo === null)
-            return message.channel.send("There's error downloading this song");
-        const song = {
-            title: songInfo.videoDetails.title,
-            url: songInfo.videoDetails.video_url,
-        };
-        
-        const serverQueue = queue.get(message.guild.id);
-        // play song
-        if (!serverQueue) {
-            const queueContruct = {
-                textChannel: message.channel,
-                voiceChannel: voiceChannel,
-                connection: null,
-                player: null,
-                songs: [],
-                volume: 5,
-                playing: true
-            };
-
-            queue.set(message.guild.id, queueContruct);
-            queueContruct.songs.push(song);
-
-            try {
-                playSongFromInteraction(song, message);
-            } catch (err) {
-                console.log(err);
-                queue.delete(message.guild.id);
-                return message.channel.send(err);
-            }
-        } 
         // add song to queue
-        else {
-            serverQueue.songs.push(song);
-			return message.channel.send(`${"`"+song.title+"`"} has been added to the queue!\n ${song.url}`);
-        }
+        addSongToQueue(song, message.guild, message.member.voice.channel);
+        return message.channel.send(`**${song.title}** is added to queue!`);
 	},
 };
