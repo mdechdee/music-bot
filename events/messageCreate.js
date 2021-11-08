@@ -10,6 +10,9 @@ module.exports = {
 	name: 'messageCreate',
 	once: false,
 	async execute(message) {
+        setTimeout(() => {
+            message.delete();
+        }, 5000);
 		if (message.author.bot) return;
 		if(!guildChannelMap[message.guildId] || guildChannelMap[message.guildId] != message.channelId)  return;
 
