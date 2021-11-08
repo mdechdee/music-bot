@@ -14,15 +14,19 @@ const ytSearch = require('youtube-search-api');
 const ytdl = require("ytdl-core");
 
 const queue = new Map();
+var sendedRecommendedUrls = [];
 
 const raw = fs.readFileSync(path.resolve(__dirname, "../guild-channel-map.json"));
 const guildChannelMap = JSON.parse(raw);
+
+var isAutoplayOn = true;
 
 function isYtUrl(str){
     return str.startsWith("https://www.youtube.com/watch");
 }
 
 function urlFromId(id){
+    if(!id) return undefined;
     return "http://www.youtube.com/watch?v="+id;
 }
 
@@ -38,24 +42,26 @@ const hasConnectAndSpeakPermission = (voiceChannel, client) => {
     return true;
 }
 
-const findSong = async (title) => {
+const findSong = async (title, isAutoplay) => {
     var songUrls;
     if(isYtUrl(title)){
         songUrls = [title];
     }
     else{
         const res = await ytSearch.GetListByKeyword(title);
-        if(!res?.items){
-            return  null;
-        }
-        songUrls = res.items.map(item => urlFromId(item.id));
+        if(!res?.items) return  null;
+        songUrls = res.items
+            .map(item => urlFromId(item.id))
+            .filter(url => !isAutoplay || !sendedRecommendedUrls.includes(url));
         // console.log("Song URLs: ", songUrls);
+        // console.log(res.items[0]);
     }
     var songInfo = null;
     for(const songUrl of songUrls){
         try{
             songInfo = await ytdl.getInfo(songUrl);
             console.log("Get info of ", songUrl, " sucessfully");
+            // console.log(songInfo.related_videos.splice(0,2))
             break;
         }
         catch (err) {
@@ -63,10 +69,15 @@ const findSong = async (title) => {
             continue;
         }
     }
-    if(songInfo === null) return null;
+    if(!songInfo) return null;
+    if(!isAutoplay) sendedRecommendedUrls = [];
+    else sendedRecommendedUrls.push(songInfo.videoDetails.video_url);
+    console.log(sendedRecommendedUrls);
     return {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
+        nextSongTitle: songInfo.related_videos[1].title,
+        isAutoplay: isAutoplay,
     };
 }
 
@@ -95,7 +106,7 @@ const playSong = (song, guild, voiceChannel) => {
         return;
     }
 
-    const stream = ytdl(song.url, { filter: 'audioonly' });
+    const stream = ytdl(song.url, { filter: 'audioonly', highWaterMark: 1024 * 1024 * 32 });
     const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
     
     connection.subscribe(player);
@@ -106,20 +117,31 @@ const playSong = (song, guild, voiceChannel) => {
             console.error(error);
         });
         
-        player.on(AudioPlayerStatus.Idle, () => {
+        player.on(AudioPlayerStatus.Idle, async () => {
             console.log("Song end, shifting")
             if(!serverQueue)    return;
+            var currentSong = serverQueue.songs[0];
             serverQueue.songs.shift();
-            playSong(serverQueue.songs[0], guild, voiceChannel);
+            var nextSong = serverQueue.songs[0];
+            // console.log(currentSong, nextSong);
+            if(!nextSong && isAutoplayOn){
+                nextSong = await findSong(currentSong.nextSongTitle, true);
+                addSongToQueue(nextSong, guild, voiceChannel);
+            }
+            playSong(nextSong, guild, voiceChannel);
         });
         serverQueue.player = player;
     }
     const channelId = guildChannelMap[guild.id];
     guild.channels.fetch(channelId)
         .then(channel => {
-            channel.send(`Start playing: **${song.title}**`);
+            song.isAutoplay? 
+                channel.send(`Auto playing: **${song.title}**`) :
+                channel.send(`Start playing: **${song.title}**`);
         })
-    console.log(`Start playing: **${song.title}**`);
+    song.isAutoplay?
+        console.log(`Auto playing: **${song.title}**`) :
+        console.log(`Start playing: **${song.title}**`);
 }
 
 const addSongToQueue = (song, guild, voiceChannel) => {

@@ -18,8 +18,7 @@ module.exports = {
       }
       console.log("Skiping Song")
       
-      serverQueue.songs.shift();
       return interaction.reply("Skipping song")
-        .then(() => playSong(serverQueue.songs[0], interaction.guild, interaction.member.voice.channel));
+        .then(() => serverQueue.player.stop());
 	},
 };

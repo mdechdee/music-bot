@@ -24,7 +24,7 @@ module.exports = {
             
         // find song
         const title = interaction.options.getString('title');
-        const song = await findSong(title);
+        const song = await findSong(title, false);
         if(!song)   return interaction.reply(`Can't find song **${title}**, or it is restricted`);
         
         // add song to queue

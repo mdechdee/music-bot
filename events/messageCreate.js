@@ -21,7 +21,8 @@ module.exports = {
 
         // find song
         const title = message.content;
-        const song = await findSong(title);
+        const song = await findSong(title, false);
+        // console.log(song);
         if(!song)   return message.channel.send(`Can't find song **${title}**, or it is restricted`);
         
         // add song to queue
