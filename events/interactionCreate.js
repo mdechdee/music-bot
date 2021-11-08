@@ -1,8 +1,17 @@
+const { skip } = require("../commands/skip");
+
 module.exports = {
 	name: 'interactionCreate',
 	async execute(interaction) {
 		console.log(`${interaction.user.tag} in #${interaction.channel.name} triggered an interaction.`);
-        if (!interaction.isCommand()) return;
+        if (!interaction.isCommand()){
+            if(interaction.componentType === 'BUTTON'){
+                if(interaction.customId === 'skip')
+                    skip(interaction);
+            }
+            
+            return;
+        }
 
         const command = interaction.client.commands.get(interaction.commandName);
 

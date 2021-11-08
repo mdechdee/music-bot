@@ -7,9 +7,15 @@ const { guildChannelMap } = require('../utils/yt-queue');
 const row = new MessageActionRow()
     .addComponents(
         new MessageButton()
-            .setCustomId('primary')
+            .setCustomId('play/pause')
             .setStyle('PRIMARY')
             .setLabel('⏯️')
+    )
+    .addComponents(
+        new MessageButton()
+            .setCustomId('skip')
+            .setStyle('PRIMARY')
+            .setLabel('⏩')
     );
 
 module.exports = {
@@ -17,20 +23,23 @@ module.exports = {
 		.setName('init')
 		.setDescription('Initialize a channel for music commands'),
 	async execute(interaction) {
-        console.log(guildChannelMap[interaction.guildId]);
-        if(!guildChannelMap[interaction.guildId]){
-            let channel = await interaction.guild.channels.create("subatomic-song-request", { reason: 'Needed a cool new channel' })
-            guildChannelMap[interaction.guildId] = channel.id;
-            let data = JSON.stringify(guildChannelMap);
-            console.log("Writing file: ", data);
-            fs.writeFileSync(path.resolve(__dirname, "../guild-channel-map.json"), data);
+        console.log(guildChannelMap[interaction.guildId]);  
+        if(guildChannelMap[interaction.guildId]){
+            const channelId = guildChannelMap[interaction.guildId];
+            interaction.guild.channels.fetch(channelId)
+                .then(channel => {
+                    console.log(`Removing old channel`);
+                    channel.delete();
+                })
         }
-        const channelId = guildChannelMap[interaction.guildId];
-        interaction.guild.channels.fetch(channelId)
-            .then(channel => {
-                console.log(`The music channel name is: ${channel.name}`);
-                channel.send({ content: 'GUI Song player wiil come soon!', components: [row] });
-            })
+        let channel = await interaction.guild.channels.create("subatomic-song-request", { reason: 'Needed a cool new channel' })
+        guildChannelMap[interaction.guildId] = channel.id;
+        await channel.send({ content: 'GUI Song player wiil come soon!', components: [row] });
+        
+        let data = JSON.stringify(guildChannelMap);
+        console.log("Writing file: ", data);
+        fs.writeFileSync(path.resolve(__dirname, "../guild-channel-map.json"), data);
+        
         return interaction.reply("init done");
     }
 };
