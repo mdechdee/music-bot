@@ -10,11 +10,11 @@ module.exports = {
 	name: 'messageCreate',
 	once: false,
 	async execute(message) {
+        if(!guildChannelMap[message.guildId] || guildChannelMap[message.guildId] != message.channelId)  return;
         setTimeout(() => {
             if(!message.pinned) message.delete();
         }, 5000);
         if (message.author.bot) return;
-		if(!guildChannelMap[message.guildId] || guildChannelMap[message.guildId] != message.channelId)  return;
 
         if(!isMemberInVoiceChannel(message.member))
             return message.channel.send("You must be in voice channel to play songs!"); 
