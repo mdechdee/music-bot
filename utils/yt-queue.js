@@ -6,6 +6,8 @@ const {
     createAudioPlayer,
 	joinVoiceChannel,
     getVoiceConnection,
+    VoiceConnectionStatus,
+    entersState
 } = require('@discordjs/voice');
 const { MessageEmbed } = require('discord.js');
 const fs = require('fs');
@@ -87,6 +89,20 @@ const findSong = async (title, isAutoplay) => {
     };
 }
 
+const stopConnection = (guild) => {
+    const serverQueue = queue.get(guild.id);
+    var connection = getVoiceConnection(guild.id);
+    var player = serverQueue.player;
+
+    if (connection) {
+        connection.destroy();
+        player.stop();
+        queue.delete(guild.id);
+    }
+    updateQueueMessage(guild);
+    return;
+}
+
 const playSong = (song, guild, voiceChannel) => {
     const serverQueue = queue.get(guild.id);
 
@@ -99,6 +115,17 @@ const playSong = (song, guild, voiceChannel) => {
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator,
         });
+
+        connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+            try {
+                await Promise.race([
+                    entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+                    entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+                ]);
+            } catch (error) {
+                stopConnection(guild);
+            }
+        });
     }
     
     if(!player){
@@ -106,10 +133,7 @@ const playSong = (song, guild, voiceChannel) => {
     }
 
     if (!song) {
-        connection.destroy();
-        player.stop();
-        queue.delete(guild.id);
-        return;
+        stopConnection(guild);
     }
 
     const stream = ytdl(song.url, { filter: 'audioonly', highWaterMark: 1024 * 1024 * 32 });
@@ -169,9 +193,11 @@ const updateQueueMessage = async (guild) => {
     let embed =  new MessageEmbed()
 	    .setColor('#0099ff')
         .setTitle('Current Song');
-    for(let [index, song] of serverQueue.songs.entries()){
-        if(song.isPlaying) embed.setDescription(song.title + "\n" + song.url).setThumbnail(getThumbnailFromUrl(song.url));
-        else newContent += "> " + index.toString() + ". " + song.title + "\n";
+    if(serverQueue){
+        for(let [index, song] of serverQueue.songs.entries()){
+            if(song.isPlaying) embed.setDescription(song.title + "\n" + song.url).setThumbnail(getThumbnailFromUrl(song.url));
+            else newContent += "> " + index.toString() + ". " + song.title + "\n";
+        }
     }
     queueMessage.edit({content: newContent, embeds: [embed]})
 }
@@ -206,4 +232,5 @@ module.exports = {
     hasConnectAndSpeakPermission,
     playSong,
     addSongToQueue,
+    stopConnection,
 }

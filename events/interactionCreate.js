@@ -1,4 +1,5 @@
 const { skip } = require("../commands/skip");
+const { stop } = require("../commands/stop");
 
 module.exports = {
 	name: 'interactionCreate',
@@ -8,8 +9,9 @@ module.exports = {
             if(interaction.componentType === 'BUTTON'){
                 if(interaction.customId === 'skip')
                     skip(interaction);
+                else if(interaction.customId === 'stop')
+                    stop(interaction);
             }
-            
             return;
         }
 

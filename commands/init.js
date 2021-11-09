@@ -15,7 +15,13 @@ const row = new MessageActionRow()
         new MessageButton()
             .setCustomId('skip')
             .setStyle('PRIMARY')
-            .setLabel('⏩')
+            .setLabel('⏭️')
+    )
+    .addComponents(
+        new MessageButton()
+            .setCustomId('stop')
+            .setStyle('PRIMARY')
+            .setLabel('⏹')
     );
 
 const initEmbed = new MessageEmbed()
