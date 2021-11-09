@@ -7,6 +7,7 @@ const {
 	joinVoiceChannel,
     getVoiceConnection,
 } = require('@discordjs/voice');
+const { MessageEmbed } = require('discord.js');
 const fs = require('fs');
 const path = require("path");
 
@@ -20,6 +21,7 @@ const raw = fs.readFileSync(path.resolve(__dirname, "../guild-channel-map.json")
 const guildChannelMap = JSON.parse(raw);
 
 var isAutoplayOn = true;
+var queueMessage;
 
 function isYtUrl(str){
     return str.startsWith("https://www.youtube.com/watch");
@@ -27,7 +29,11 @@ function isYtUrl(str){
 
 function urlFromId(id){
     if(!id) return undefined;
-    return "http://www.youtube.com/watch?v="+id;
+    return "https://www.youtube.com/watch?v="+id;
+}
+
+function getThumbnailFromUrl(url){
+    return url.replace("https://www.youtube.com/watch?v=", 'https://img.youtube.com/vi/') + "/default.jpg";
 }
 
 const isMemberInVoiceChannel = member => {
@@ -112,6 +118,9 @@ const playSong = (song, guild, voiceChannel) => {
     connection.subscribe(player);
     player.play(resource);
 
+    song.isPlaying = true;
+    updateQueueMessage(guild);
+
     if(serverQueue.player === null){
         player.on('error', error => {
             console.error(error);
@@ -144,8 +153,32 @@ const playSong = (song, guild, voiceChannel) => {
         console.log(`Start playing: **${song.title}**`);
 }
 
-const addSongToQueue = (song, guild, voiceChannel) => {
+const getQueueMessage = async (guild) =>{
+    const channelId = guildChannelMap[guild.id];
+    const channel = await guild.channels.fetch(channelId);
+    const messages = await channel.messages.fetch();
+    const queueMessage = messages.filter(msg => msg.content.includes("Song queue"));
+    return queueMessage.first();
+}
+
+const updateQueueMessage = async (guild) => {
     const serverQueue = queue.get(guild.id);
+    if(!queueMessage) queueMessage = await getQueueMessage(guild);
+
+    let newContent = "**Song queue**\n";
+    let embed =  new MessageEmbed()
+	    .setColor('#0099ff')
+        .setTitle('Current Song');
+    for(let [index, song] of serverQueue.songs.entries()){
+        if(song.isPlaying) embed.setDescription(song.title + "\n" + song.url).setThumbnail(getThumbnailFromUrl(song.url));
+        else newContent += "> " + index.toString() + ". " + song.title + "\n";
+    }
+    queueMessage.edit({content: newContent, embeds: [embed]})
+}
+
+const addSongToQueue = async (song, guild, voiceChannel) => {
+    const serverQueue = queue.get(guild.id);
+
     if (!serverQueue) {
         const queueContruct = {
             voiceChannel: voiceChannel,
@@ -161,6 +194,8 @@ const addSongToQueue = (song, guild, voiceChannel) => {
     else {
         serverQueue.songs.push(song);
     }
+
+    updateQueueMessage(guild);
 }
 
 module.exports = {

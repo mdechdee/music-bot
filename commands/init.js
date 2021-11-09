@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageActionRow, MessageButton } = require('discord.js');
+const { MessageActionRow, MessageButton, MessageEmbed } = require('discord.js');
 const fs = require('fs');
 const path = require("path");
 const { guildChannelMap } = require('../utils/yt-queue');
@@ -18,6 +18,11 @@ const row = new MessageActionRow()
             .setLabel('⏩')
     );
 
+const initEmbed = new MessageEmbed()
+	.setColor('#0099ff')
+	.setTitle('Current Song: None')
+	.setURL('https://www.youtube.com/')
+
 module.exports = {
     data: new SlashCommandBuilder()
 		.setName('init')
@@ -34,12 +39,12 @@ module.exports = {
         }
         let channel = await interaction.guild.channels.create("subatomic-song-request", { reason: 'Needed a cool new channel' })
         guildChannelMap[interaction.guildId] = channel.id;
-        await channel.send({ content: 'GUI Song player wiil come soon!', components: [row] });
-        
+        await channel.send({ content: 'GUI Song player!', components: [row] }).then(msg => msg.pin());
+        await channel.send({ content: '**Song queue**', embeds: [initEmbed]}).then(msg => msg.pin());
         let data = JSON.stringify(guildChannelMap);
         console.log("Writing file: ", data);
         fs.writeFileSync(path.resolve(__dirname, "../guild-channel-map.json"), data);
         
-        return interaction.reply("init done");
+        return;
     }
 };

@@ -11,9 +11,9 @@ module.exports = {
 	once: false,
 	async execute(message) {
         setTimeout(() => {
-            message.delete();
+            if(!message.pinned) message.delete();
         }, 5000);
-		if (message.author.bot) return;
+        if (message.author.bot) return;
 		if(!guildChannelMap[message.guildId] || guildChannelMap[message.guildId] != message.channelId)  return;
 
         if(!isMemberInVoiceChannel(message.member))
