@@ -12,7 +12,7 @@ module.exports = {
 	async execute(message) {
         if(!guildChannelMap[message.guildId] || guildChannelMap[message.guildId] != message.channelId)  return;
         setTimeout(() => {
-            if(!message.pinned) message.delete();
+            if(!message.pinned) message.delete().catch(() => console.log("message already deleted"));
         }, 5000);
         if (message.author.bot) return;
 

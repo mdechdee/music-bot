@@ -17,13 +17,12 @@ const ytSearch = require('youtube-search-api');
 const ytdl = require("ytdl-core");
 
 const queue = new Map();
-var sendedRecommendedUrls = [];
+let sendedRecommendedUrls = [];
 
 const raw = fs.readFileSync(path.resolve(__dirname, "../guild-channel-map.json"));
 const guildChannelMap = JSON.parse(raw);
 
-var isAutoplayOn = true;
-var queueMessage;
+let isAutoplayOn = true;
 
 function isYtUrl(str){
     return str.startsWith("https://www.youtube.com/watch");
@@ -50,8 +49,13 @@ const hasConnectAndSpeakPermission = (voiceChannel, client) => {
     return true;
 }
 
+const getBestRelatedVideoTitle = (videos) => {
+    if(!videos || !videos[1]) return "never gonna give you up";
+    else return videos[1].title;
+}
+
 const findSong = async (title, isAutoplay) => {
-    var songUrls;
+    let songUrls;
     if(isYtUrl(title)){
         songUrls = [title];
     }
@@ -64,7 +68,7 @@ const findSong = async (title, isAutoplay) => {
         // console.log("Song URLs: ", songUrls);
         // console.log(res.items[0]);
     }
-    var songInfo = null;
+    let songInfo = null;
     for(const songUrl of songUrls){
         try{
             songInfo = await ytdl.getInfo(songUrl);
@@ -80,34 +84,37 @@ const findSong = async (title, isAutoplay) => {
     if(!songInfo) return null;
     if(!isAutoplay) sendedRecommendedUrls = [];
     else sendedRecommendedUrls.push(songInfo.videoDetails.video_url);
-    console.log(sendedRecommendedUrls);
+
     return {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
-        nextSongTitle: songInfo.related_videos[1].title,
+        nextSongTitle: getBestRelatedVideoTitle(songInfo.related_videos),
         isAutoplay: isAutoplay,
     };
 }
 
 const stopConnection = (guild) => {
     const serverQueue = queue.get(guild.id);
-    var connection = getVoiceConnection(guild.id);
-    var player = serverQueue.player;
+    if(!serverQueue){
+        updateQueueMessage(guild);
+        return;
+    } 
+    let connection = getVoiceConnection(guild.id);
+    let player = serverQueue.player;
 
     if (connection) {
         connection.destroy();
         player.stop();
         queue.delete(guild.id);
     }
-    updateQueueMessage(guild);
     return;
 }
 
 const playSong = (song, guild, voiceChannel) => {
     const serverQueue = queue.get(guild.id);
 
-    var connection = getVoiceConnection(guild.id);
-    var player = serverQueue.player;
+    let connection = getVoiceConnection(guild.id);
+    let player = serverQueue.player;
 
     if(!connection){
         connection = joinVoiceChannel({
@@ -153,9 +160,9 @@ const playSong = (song, guild, voiceChannel) => {
         player.on(AudioPlayerStatus.Idle, async () => {
             console.log("Song end, shifting")
             if(!serverQueue)    return;
-            var currentSong = serverQueue.songs[0];
+            let currentSong = serverQueue.songs[0];
             serverQueue.songs.shift();
-            var nextSong = serverQueue.songs[0];
+            let nextSong = serverQueue.songs[0];
             // console.log(currentSong, nextSong);
             if(!nextSong && isAutoplayOn){
                 nextSong = await findSong(currentSong.nextSongTitle, true);
@@ -173,8 +180,8 @@ const playSong = (song, guild, voiceChannel) => {
                 channel.send(`Start playing: **${song.title}**`);
         })
     song.isAutoplay?
-        console.log(`Auto playing: **${song.title}**`) :
-        console.log(`Start playing: **${song.title}**`);
+        console.log(`Auto playing: **${song.title}** at ${new Date().toLocaleString('en-KR')}`):
+        console.log(`Start playing: **${song.title}** at ${new Date().toLocaleString('en-KR')}`);
 }
 
 const getQueueMessage = async (guild) =>{
@@ -187,7 +194,7 @@ const getQueueMessage = async (guild) =>{
 
 const updateQueueMessage = async (guild) => {
     const serverQueue = queue.get(guild.id);
-    if(!queueMessage) queueMessage = await getQueueMessage(guild);
+    const queueMessage = await getQueueMessage(guild);
 
     let newContent = "**Song queue**\n";
     let embed =  new MessageEmbed()
@@ -195,6 +202,7 @@ const updateQueueMessage = async (guild) => {
         .setTitle('Current Song');
     if(serverQueue){
         for(let [index, song] of serverQueue.songs.entries()){
+            if(!song) continue;
             if(song.isPlaying) embed.setDescription(song.title + "\n" + song.url).setThumbnail(getThumbnailFromUrl(song.url));
             else newContent += "> " + index.toString() + ". " + song.title + "\n";
         }

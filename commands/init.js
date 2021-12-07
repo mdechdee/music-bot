@@ -42,8 +42,11 @@ module.exports = {
                     console.log(`Removing old channel`);
                     channel.delete();
                 })
+                .catch(err => {
+                    console.log(`ChannelId stored but no channel found`);
+                })
         }
-        let channel = await interaction.guild.channels.create("subatomic-song-request", { reason: 'Needed a cool new channel' })
+        let channel = await interaction.guild.channels.create("subatomic-song-request", { reason: 'for request song from subatomic' })
         guildChannelMap[interaction.guildId] = channel.id;
         await channel.send({ content: 'GUI Song player!', components: [row] }).then(msg => msg.pin());
         await channel.send({ content: '**Song queue**', embeds: [initEmbed]}).then(msg => msg.pin());
